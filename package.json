@@ -1,0 +1,20 @@
+{
+  "name": "kele-desktop-pet",
+  "version": "1.0.0",
+  "description": "Stardew Valley cat desktop pet",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "electron": "^37.2.0"
+  },
+  "dependencies": {
+    "@xnb-js/stardew-valley": "^1.1.0",
+    "xnb": "^1.3.0-a"
+  }
+}

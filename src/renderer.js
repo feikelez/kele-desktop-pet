@@ -1,31 +1,45 @@
 const SPRITE_SIZE = 32;
-const SCALE = 6;
-const COLS = 4;
-const ROWS = 8;
+const SCALE = 3;
+const ANIM_COLS = 4;
+const ANIM_ROWS = 8;
 const CANVAS_SIZE = SPRITE_SIZE * SCALE;
 
-const DIRECTIONS = { DOWN: 0, LEFT: 1, RIGHT: 2, UP: 3 };
-const ANIM_ROWS = {
-  IDLE_SIT: 0,
-  WALK_1: 1,
-  IDLE_VARIANT: 2,
-  WALK_2: 3,
-  IDLE_2: 4,
-  IDLE_3: 5,
-  RUN: 6,
+const ROW = {
+  WALK_DOWN: 0,
+  WALK_RIGHT: 1,
+  WALK_UP: 2,
+  WALK_LEFT: 3,
+  IDLE: 4,
+  IDLE_LICK: 5,
+  LIE_DOWN: 6,
   SLEEP: 7,
 };
-const STATES = { IDLE: 'idle', WALK: 'walk', RUN: 'run', SLEEP: 'sleep' };
+
+const DIR = { DOWN: 0, RIGHT: 1, UP: 2, LEFT: 3 };
+
+const STATE = {
+  IDLE: 'idle',
+  WALK: 'walk',
+  LICK: 'lick',
+  LIE_DOWN: 'lie_down',
+  SLEEP: 'sleep',
+};
+
+const FRAME_INTERVALS = {};
+FRAME_INTERVALS[STATE.IDLE] = 450;
+FRAME_INTERVALS[STATE.WALK] = 350;
+FRAME_INTERVALS[STATE.LICK] = 400;
+FRAME_INTERVALS[STATE.LIE_DOWN] = 400;
+FRAME_INTERVALS[STATE.SLEEP] = 600;
 
 const IDLE_DURATION_MIN = 3000;
 const IDLE_DURATION_MAX = 8000;
 const WALK_DURATION_MIN = 2000;
 const WALK_DURATION_MAX = 5000;
-const SLEEP_TRIGGER_TIME = 30000;
-const WALK_SPEED = 0.4;
-const RUN_SPEED = 1.2;
+const WALK_SPEED = 0.08;
+const LICK_REPEAT_MIN = 2;
+const LICK_REPEAT_MAX = 4;
 
-// ==================== Sprite ====================
 let spriteImage = null;
 let spriteLoaded = false;
 
@@ -34,40 +48,34 @@ function loadSprite(src) {
     spriteImage = new Image();
     spriteImage.onload = () => {
       spriteLoaded = true;
-      console.log('Sprite loaded:', src, spriteImage.width, 'x', spriteImage.height);
       resolve();
     };
-    spriteImage.onerror = (err) => {
-      console.error('Failed to load sprite:', src, err);
-      reject(err);
-    };
+    spriteImage.onerror = (err) => { reject(err); };
     const filePath = src.replace(/\\/g, '/');
     spriteImage.src = filePath.startsWith('file://') ? filePath : 'file:///' + filePath;
   });
 }
 
-function drawFrame(ctx, animRow, direction, x, y) {
+function drawFrame(ctx, row, col) {
   if (!spriteLoaded) return;
-  const col = direction;
   const sx = col * SPRITE_SIZE;
-  const sy = animRow * SPRITE_SIZE;
-  ctx.drawImage(
-    spriteImage,
-    sx, sy, SPRITE_SIZE, SPRITE_SIZE,
-    x, y, SPRITE_SIZE * SCALE, SPRITE_SIZE * SCALE
-  );
+  const sy = row * SPRITE_SIZE;
+  const dw = SPRITE_SIZE * SCALE;
+  const dh = SPRITE_SIZE * SCALE;
+  ctx.drawImage(spriteImage, sx, sy, SPRITE_SIZE, SPRITE_SIZE, 0, 0, dw, dh);
 }
 
-// ==================== Behavior ====================
-let state = STATES.IDLE;
-let direction = DIRECTIONS.DOWN;
+let state = STATE.IDLE;
+let direction = DIR.DOWN;
 let stateTimer = 0;
 let stateDuration = randomIdleDuration();
 let idleStartTime = Date.now();
-let frameIndex = 0;
-let frameTimer = 0;
+let colIndex = 0;
+let colTimer = 0;
 let moveX = 0;
 let moveY = 0;
+let lickRepeats = 0;
+let lickCurrentRepeat = 0;
 
 function randomIdleDuration() {
   return IDLE_DURATION_MIN + Math.random() * (IDLE_DURATION_MAX - IDLE_DURATION_MIN);
@@ -78,131 +86,149 @@ function randomWalkDuration() {
 }
 
 function randomDirection() {
-  const dirs = [DIRECTIONS.DOWN, DIRECTIONS.LEFT, DIRECTIONS.RIGHT, DIRECTIONS.UP];
+  const dirs = [DIR.DOWN, DIR.RIGHT, DIR.UP, DIR.LEFT];
   return dirs[Math.floor(Math.random() * dirs.length)];
 }
 
-function setState(newState, newDirection) {
-  const oldState = state;
+function randomNextState() {
+  const r = Math.random();
+  if (r < 0.50) return STATE.WALK;
+  if (r < 0.70) return STATE.LICK;
+  if (r < 0.90) return STATE.LIE_DOWN;
+  return STATE.SLEEP;
+}
+
+function setState(newState) {
   state = newState;
-  if (newDirection !== undefined) {
-    direction = newDirection;
-  }
   stateTimer = 0;
-  frameIndex = 0;
-  frameTimer = 0;
+  colIndex = 0;
+  colTimer = 0;
   moveX = 0;
   moveY = 0;
 
   switch (newState) {
-    case STATES.IDLE:
+    case STATE.IDLE:
       stateDuration = randomIdleDuration();
       idleStartTime = Date.now();
+      direction = DIR.DOWN;
       break;
-    case STATES.WALK:
+    case STATE.WALK:
       stateDuration = randomWalkDuration();
       direction = randomDirection();
       break;
-    case STATES.RUN:
-      stateDuration = randomWalkDuration() * 0.6;
-      direction = randomDirection();
+    case STATE.LICK:
+      lickRepeats = LICK_REPEAT_MIN + Math.floor(Math.random() * (LICK_REPEAT_MAX - LICK_REPEAT_MIN + 1));
+      lickCurrentRepeat = 0;
+      direction = DIR.DOWN;
       break;
-    case STATES.SLEEP:
-      stateDuration = Infinity;
-      direction = DIRECTIONS.DOWN;
+    case STATE.LIE_DOWN:
+      direction = DIR.DOWN;
+      break;
+    case STATE.SLEEP:
+      direction = DIR.DOWN;
       break;
   }
 }
 
-function updateBehavior(dt) {
+function getWalkRow() {
+  switch (direction) {
+    case DIR.DOWN: return ROW.WALK_DOWN;
+    case DIR.RIGHT: return ROW.WALK_RIGHT;
+    case DIR.UP: return ROW.WALK_UP;
+    case DIR.LEFT: return ROW.WALK_LEFT;
+    default: return ROW.WALK_DOWN;
+  }
+}
+
+function getCurrentRow() {
+  switch (state) {
+    case STATE.IDLE: return ROW.IDLE;
+    case STATE.WALK: return getWalkRow();
+    case STATE.LICK: return ROW.IDLE_LICK;
+    case STATE.LIE_DOWN: return ROW.LIE_DOWN;
+    case STATE.SLEEP: return ROW.SLEEP;
+    default: return ROW.IDLE;
+  }
+}
+
+function updateState(dt) {
   stateTimer += dt;
-  frameTimer += dt;
+  colTimer += dt;
 
-  let animRow = ANIM_ROWS.IDLE_SIT;
-  let frameInterval = 500;
+  const interval = FRAME_INTERVALS[state] || 400;
 
   switch (state) {
-    case STATES.IDLE:
-      animRow = ANIM_ROWS.IDLE_SIT;
-      frameInterval = 500;
-      if (frameTimer > 2000) {
-        frameIndex = (frameIndex + 1) % 2;
-        if (frameIndex === 1) {
-          animRow = ANIM_ROWS.IDLE_VARIANT;
+    case STATE.IDLE:
+      if (colTimer >= interval) {
+        colTimer -= interval;
+        if (colIndex < ANIM_COLS - 1) {
+          colIndex++;
         }
-        frameTimer = 0;
       }
       if (stateTimer >= stateDuration) {
-        if (Date.now() - idleStartTime > SLEEP_TRIGGER_TIME) {
-          setState(STATES.SLEEP);
+        setState(randomNextState());
+      }
+      break;
+
+    case STATE.WALK:
+      if (colTimer >= interval) {
+        colTimer -= interval;
+        colIndex = (colIndex + 1) % ANIM_COLS;
+      }
+      moveX = 0;
+      moveY = 0;
+      switch (direction) {
+        case DIR.LEFT: moveX = -WALK_SPEED; break;
+        case DIR.RIGHT: moveX = WALK_SPEED; break;
+        case DIR.UP: moveY = -WALK_SPEED; break;
+        case DIR.DOWN: moveY = WALK_SPEED; break;
+      }
+      if (stateTimer >= stateDuration) {
+        setState(STATE.IDLE);
+      }
+      break;
+
+    case STATE.LICK:
+      if (colTimer >= interval) {
+        colTimer -= interval;
+        colIndex++;
+        if (colIndex >= ANIM_COLS) {
+          colIndex = 0;
+          lickCurrentRepeat++;
+          if (lickCurrentRepeat >= lickRepeats) {
+            setState(STATE.IDLE);
+            return;
+          }
+        }
+      }
+      break;
+
+    case STATE.LIE_DOWN:
+      if (colTimer >= interval) {
+        colTimer -= interval;
+        if (colIndex < ANIM_COLS - 1) {
+          colIndex++;
         } else {
-          setState(Math.random() < 0.2 ? STATES.RUN : STATES.WALK);
+          setState(STATE.IDLE);
+          return;
         }
       }
       break;
 
-    case STATES.WALK:
-      moveX = 0;
-      moveY = 0;
-      switch (direction) {
-        case DIRECTIONS.LEFT: moveX = -WALK_SPEED; break;
-        case DIRECTIONS.RIGHT: moveX = WALK_SPEED; break;
-        case DIRECTIONS.UP: moveY = -WALK_SPEED; break;
-        case DIRECTIONS.DOWN: moveY = WALK_SPEED; break;
-      }
-      animRow = frameIndex % 2 === 0 ? ANIM_ROWS.WALK_1 : ANIM_ROWS.WALK_2;
-      frameInterval = 250;
-      if (frameTimer >= frameInterval) {
-        frameIndex = (frameIndex + 1) % 2;
-        frameTimer = 0;
-      }
-      if (stateTimer >= stateDuration) {
-        setState(STATES.IDLE);
+    case STATE.SLEEP:
+      if (colTimer >= interval) {
+        colTimer -= interval;
+        if (colIndex < ANIM_COLS - 1) {
+          colIndex++;
+        } else {
+          setState(STATE.IDLE);
+          return;
+        }
       }
       break;
-
-    case STATES.RUN:
-      moveX = 0;
-      moveY = 0;
-      switch (direction) {
-        case DIRECTIONS.LEFT: moveX = -RUN_SPEED; break;
-        case DIRECTIONS.RIGHT: moveX = RUN_SPEED; break;
-        case DIRECTIONS.UP: moveY = -RUN_SPEED; break;
-        case DIRECTIONS.DOWN: moveY = RUN_SPEED; break;
-      }
-      animRow = ANIM_ROWS.RUN;
-      frameInterval = 100;
-      if (stateTimer >= stateDuration) {
-        setState(STATES.IDLE);
-      }
-      break;
-
-    case STATES.SLEEP:
-      animRow = ANIM_ROWS.SLEEP;
-      frameInterval = 1000;
-      break;
-  }
-
-  return { animRow };
-}
-
-function getCurrentAnimRow() {
-  switch (state) {
-    case STATES.IDLE:
-      if (frameIndex === 1) return ANIM_ROWS.IDLE_VARIANT;
-      return ANIM_ROWS.IDLE_SIT;
-    case STATES.WALK:
-      return frameIndex % 2 === 0 ? ANIM_ROWS.WALK_1 : ANIM_ROWS.WALK_2;
-    case STATES.RUN:
-      return ANIM_ROWS.RUN;
-    case STATES.SLEEP:
-      return ANIM_ROWS.SLEEP;
-    default:
-      return ANIM_ROWS.IDLE_SIT;
   }
 }
 
-// ==================== Pet ====================
 const canvas = document.getElementById('petCanvas');
 const ctx = canvas.getContext('2d');
 const { ipcRenderer } = require('electron');
@@ -223,41 +249,33 @@ let lastTime = 0;
 let initialized = false;
 
 async function init() {
-  console.log('Initializing pet...');
-
   ipcRenderer.on('sprite-path', (event, spritePath) => {
-    console.log('Received sprite path:', spritePath);
     loadSprite(spritePath).then(() => {
       initialized = true;
       requestAnimationFrame(gameLoop);
-    }).catch(err => {
-      console.error('Failed to load sprite:', err);
-    });
+    }).catch(err => { console.error('Failed to load sprite:', err); });
   });
 
   ipcRenderer.on('screen-size', (event, size) => {
     screenW = size.width;
     screenH = size.height;
-    console.log('Screen size:', screenW, 'x', screenH);
   });
 
   ipcRenderer.on('pet-action', (event, action) => {
     switch (action) {
-      case 'idle': setState(STATES.IDLE); break;
-      case 'walk': setState(STATES.WALK); break;
-      case 'run': setState(STATES.RUN); break;
-      case 'sleep': setState(STATES.SLEEP); break;
+      case 'idle': setState(STATE.IDLE); break;
+      case 'walk': direction = randomDirection(); setState(STATE.WALK); break;
+      case 'run': direction = randomDirection(); setState(STATE.WALK); break;
+      case 'sleep': setState(STATE.SLEEP); break;
     }
   });
 
   ipcRenderer.on('pet-move-to', (event, pos) => {
     petX = pos.x;
     petY = pos.y;
-    console.log('Pet position:', petX, petY);
   });
 
   setupInteraction();
-
   ipcRenderer.send('get-screen-size');
 }
 
@@ -267,8 +285,8 @@ function setupInteraction() {
       isDragging = true;
       dragOffsetX = e.screenX - petX;
       dragOffsetY = e.screenY - petY;
-      if (state === STATES.SLEEP) {
-        setState(STATES.IDLE);
+      if (state === STATE.SLEEP || state === STATE.LIE_DOWN) {
+        setState(STATE.IDLE);
       }
     }
   });
@@ -286,15 +304,16 @@ function setupInteraction() {
   window.addEventListener('mouseup', (e) => {
     if (e.button === 0 && isDragging) {
       isDragging = false;
-      setState(STATES.IDLE);
+      setState(STATE.IDLE);
     }
   });
 
   canvas.addEventListener('dblclick', () => {
-    if (state === STATES.SLEEP) {
-      setState(STATES.IDLE);
+    const r = Math.random();
+    if (r < 0.5) {
+      setState(STATE.LICK);
     } else {
-      setState(STATES.SLEEP);
+      setState(STATE.LIE_DOWN);
     }
   });
 
@@ -326,7 +345,7 @@ function gameLoop(timestamp) {
 function update(dt) {
   if (isDragging) return;
 
-  updateBehavior(dt, screenW, screenH, petX, petY);
+  updateState(dt);
 
   if (moveX !== 0 || moveY !== 0) {
     petX += moveX * dt;
@@ -334,18 +353,18 @@ function update(dt) {
 
     if (petX < 0) {
       petX = 0;
-      direction = DIRECTIONS.RIGHT;
+      direction = DIR.RIGHT;
     } else if (petX > screenW - CANVAS_SIZE) {
       petX = screenW - CANVAS_SIZE;
-      direction = DIRECTIONS.LEFT;
+      direction = DIR.LEFT;
     }
 
     if (petY < 0) {
       petY = 0;
-      direction = DIRECTIONS.DOWN;
+      direction = DIR.DOWN;
     } else if (petY > screenH - CANVAS_SIZE) {
       petY = screenH - CANVAS_SIZE;
-      direction = DIRECTIONS.UP;
+      direction = DIR.UP;
     }
 
     ipcRenderer.send('move-window', { x: Math.round(petX), y: Math.round(petY) });
@@ -356,16 +375,10 @@ function render() {
   ctx.clearRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
   ctx.imageSmoothingEnabled = false;
 
-  const animRow = getCurrentAnimRow();
-  if (spriteLoaded) {
-    drawFrame(ctx, animRow, direction, 0, 0);
-  } else {
-    ctx.fillStyle = 'red';
-    ctx.fillRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
-    ctx.fillStyle = 'white';
-    ctx.font = '20px Arial';
-    ctx.fillText('Loading...', 20, 100);
-  }
+  const row = getCurrentRow();
+  const col = colIndex % ANIM_COLS;
+
+  drawFrame(ctx, row, col);
 }
 
 init().catch(console.error);

@@ -8,15 +8,15 @@ function createWindow() {
   const { width: screenWidth, height: screenHeight } = screen.getPrimaryDisplay().workAreaSize;
 
   mainWindow = new BrowserWindow({
-    width: 192,
-    height: 192,
-    x: Math.floor(screenWidth / 2 - 96),
-    y: Math.floor(screenHeight / 2 - 96),
+    width: 96,
+    height: 96,
+    x: Math.floor(screenWidth / 2 - 48),
+    y: Math.floor(screenHeight / 2 - 48),
     frame: false,
     transparent: true,
     alwaysOnTop: true,
     resizable: false,
-    skipTaskbar: false,
+    skipTaskbar: true,
     hasShadow: false,
     backgroundColor: '#00000000',
     webPreferences: {
@@ -27,8 +27,6 @@ function createWindow() {
 
   mainWindow.setVisibleOnAllWorkspaces(true);
 
-  mainWindow.webContents.openDevTools({ mode: 'detach' });
-
   mainWindow.loadFile(path.join(__dirname, 'src', 'index.html'));
 
   mainWindow.webContents.on('did-finish-load', () => {
@@ -38,6 +36,11 @@ function createWindow() {
     mainWindow.webContents.send('screen-size', { width, height });
     const [x, y] = mainWindow.getPosition();
     mainWindow.webContents.send('pet-move-to', { x, y });
+  });
+
+  mainWindow.on('close', (e) => {
+    e.preventDefault();
+    mainWindow.hide();
   });
 
   mainWindow.on('closed', () => {
@@ -65,8 +68,12 @@ function createTray() {
 
   tray.on('click', () => {
     if (mainWindow) {
-      mainWindow.show();
-      mainWindow.focus();
+      if (mainWindow.isVisible()) {
+        mainWindow.hide();
+      } else {
+        mainWindow.show();
+        mainWindow.focus();
+      }
     }
   });
 }
@@ -77,9 +84,6 @@ app.whenReady().then(() => {
 });
 
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
-    app.quit();
-  }
 });
 
 app.on('activate', () => {

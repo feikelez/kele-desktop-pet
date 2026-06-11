@@ -137,6 +137,13 @@ function setState(newState) {
     loopCurrentRepeat = 0;
   }
 
+  if (isStaticAnim) {
+    const trans = charConfig.transitions[newState];
+    if (trans && trans.waitMin !== undefined) {
+      startWaiting(trans.waitMin + Math.random() * (trans.waitMax - trans.waitMin));
+    }
+  }
+
   if (newState === STATE.WALK) {
     stateDuration = randomWalkDuration();
     direction = randomDirection();

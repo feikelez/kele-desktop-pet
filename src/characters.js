@@ -80,7 +80,7 @@ const CHARACTERS = {
         { state: 'idle', weight: 0.5 },
         { state: 'walk', weight: 0.5 },
       ],
-      idle: { waitMin: 3000, waitMax: 6000, next: 'walk' },
+      idle: { waitMin: 1000, waitMax: 2500, next: 'walk' },
     },
     walkDurationMin: 2000,
     walkDurationMax: 4000,

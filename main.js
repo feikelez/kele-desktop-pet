@@ -1,17 +1,101 @@
-const { app, BrowserWindow, Tray, Menu, screen, ipcMain } = require('electron');
+const { app, BrowserWindow, Tray, Menu, MenuItem, screen, ipcMain } = require('electron');
 const path = require('path');
+const CHARACTERS = require('./src/characters');
 
 let mainWindow = null;
 let tray = null;
+let currentCharKey = 'cat2';
+
+function getCharacterMenuItems() {
+  return Object.keys(CHARACTERS).map(key => ({
+    label: CHARACTERS[key].name,
+    type: 'radio',
+    checked: key === currentCharKey,
+    click: () => { switchCharacter(key); },
+  }));
+}
+
+function getCanvasSize(charKey) {
+  const conf = CHARACTERS[charKey];
+  return {
+    width: conf.frameWidth * conf.scale,
+    height: conf.frameHeight * conf.scale,
+  };
+}
+
+function switchCharacter(charKey) {
+  if (charKey === currentCharKey) return;
+  currentCharKey = charKey;
+
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    const { width, height } = getCanvasSize(charKey);
+    mainWindow.setSize(width, height);
+    mainWindow.webContents.send('switch-character', charKey);
+  }
+
+  updateTrayMenu();
+}
+
+function buildContextMenu() {
+  const charConf = CHARACTERS[currentCharKey];
+  const stateLabels = {};
+  const stateNames = Object.keys(charConf.states).filter(s => s !== 'walk');
+
+  const stateMenuItems = stateNames.map(stateName => ({
+    label: getStateLabel(stateName, charConf.name),
+    click: () => { if (mainWindow) mainWindow.webContents.send('pet-action', stateName); },
+  }));
+
+  return Menu.buildFromTemplate([
+    { label: '显示宠物', click: () => { if (mainWindow) mainWindow.show(); } },
+    { type: 'separator' },
+    { label: '切换动作', submenu: stateMenuItems },
+    { label: '走路', click: () => { if (mainWindow) mainWindow.webContents.send('pet-action', 'walk'); } },
+    { type: 'separator' },
+    { label: '切换角色', submenu: getCharacterMenuItems() },
+    { type: 'separator' },
+    { label: '退出', click: () => { app.quit(); } },
+  ]);
+}
+
+function getStateLabel(stateName, charName) {
+  const labels = {
+    idle: '发呆',
+    lick: '舔爪子',
+    lie_down: '趴下',
+    sleep: '睡觉',
+    read: '看书',
+    sit: '坐下',
+    coffee: '喝咖啡',
+    typing: '打字',
+    smoking: '抽烟',
+    look_down: '往下看',
+    look_right: '往右看',
+    look_up: '往上看',
+    look_left: '往左看',
+    motorcycle: '骑摩托',
+    game: '玩游戏',
+  };
+  return labels[stateName] || stateName;
+}
+
+function updateTrayMenu() {
+  if (tray) {
+    const charConf = CHARACTERS[currentCharKey];
+    tray.setToolTip(charConf.name);
+    tray.setContextMenu(buildContextMenu());
+  }
+}
 
 function createWindow() {
   const { width: screenWidth, height: screenHeight } = screen.getPrimaryDisplay().workAreaSize;
+  const { width: canvasW, height: canvasH } = getCanvasSize(currentCharKey);
 
   mainWindow = new BrowserWindow({
-    width: 96,
-    height: 96,
-    x: Math.floor(screenWidth / 2 - 48),
-    y: Math.floor(screenHeight / 2 - 48),
+    width: canvasW,
+    height: canvasH,
+    x: Math.floor(screenWidth / 2 - canvasW / 2),
+    y: Math.floor(screenHeight / 2 - canvasH / 2),
     frame: false,
     transparent: true,
     alwaysOnTop: true,
@@ -30,7 +114,8 @@ function createWindow() {
   mainWindow.loadFile(path.join(__dirname, 'src', 'index.html'));
 
   mainWindow.webContents.on('did-finish-load', () => {
-    const spritePath = path.join(__dirname, 'assets', 'cat2.png').replace(/\\/g, '/');
+    const charConf = CHARACTERS[currentCharKey];
+    const spritePath = path.join(__dirname, 'assets', charConf.sprite).replace(/\\/g, '/');
     mainWindow.webContents.send('sprite-path', spritePath);
     const { width, height } = screen.getPrimaryDisplay().workAreaSize;
     mainWindow.webContents.send('screen-size', { width, height });
@@ -52,19 +137,7 @@ function createTray() {
   const iconPath = path.join(__dirname, 'assets', 'cat2.png');
   tray = new Tray(iconPath);
 
-  const contextMenu = Menu.buildFromTemplate([
-    { label: '显示猫猫', click: () => { if (mainWindow) mainWindow.show(); } },
-    { type: 'separator' },
-    { label: '坐下', click: () => { if (mainWindow) mainWindow.webContents.send('pet-action', 'idle'); } },
-    { label: '走路', click: () => { if (mainWindow) mainWindow.webContents.send('pet-action', 'walk'); } },
-    { label: '跑步', click: () => { if (mainWindow) mainWindow.webContents.send('pet-action', 'run'); } },
-    { label: '睡觉', click: () => { if (mainWindow) mainWindow.webContents.send('pet-action', 'sleep'); } },
-    { type: 'separator' },
-    { label: '退出', click: () => { app.quit(); } },
-  ]);
-
-  tray.setToolTip('星露谷猫猫');
-  tray.setContextMenu(contextMenu);
+  updateTrayMenu();
 
   tray.on('click', () => {
     if (mainWindow) {
@@ -103,14 +176,31 @@ ipcMain.on('get-screen-size', (event) => {
   event.reply('screen-size', { width, height });
 });
 
+ipcMain.on('resize-window', (event, { width, height }) => {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.setSize(width, height);
+  }
+});
+
 ipcMain.on('show-context-menu', (event, { x, y }) => {
-  const contextMenu = Menu.buildFromTemplate([
-    { label: '坐下', click: () => { if (mainWindow) mainWindow.webContents.send('pet-action', 'idle'); } },
+  const popupMenu = Menu.buildFromTemplate([
     { label: '走路', click: () => { if (mainWindow) mainWindow.webContents.send('pet-action', 'walk'); } },
-    { label: '跑步', click: () => { if (mainWindow) mainWindow.webContents.send('pet-action', 'run'); } },
-    { label: '睡觉', click: () => { if (mainWindow) mainWindow.webContents.send('pet-action', 'sleep'); } },
-    { type: 'separator' },
-    { label: '退出', click: () => { app.quit(); } },
   ]);
-  contextMenu.popup({ x, y });
+
+  const charConf = CHARACTERS[currentCharKey];
+  const stateNames = Object.keys(charConf.states).filter(s => s !== 'walk');
+  for (const stateName of stateNames) {
+    popupMenu.append(new MenuItem({
+      label: getStateLabel(stateName),
+      click: () => { if (mainWindow) mainWindow.webContents.send('pet-action', stateName); },
+    }));
+  }
+
+  popupMenu.append(new MenuItem({ type: 'separator' }));
+  popupMenu.append(new MenuItem({
+    label: '退出',
+    click: () => { app.quit(); },
+  }));
+
+  popupMenu.popup({ x, y });
 });

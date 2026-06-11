@@ -4,6 +4,7 @@ const CHARACTERS = require('./src/characters');
 
 let mainWindow = null;
 let tray = null;
+let isQuitting = false;
 let currentCharKey = 'cat2';
 
 function getCharacterMenuItems() {
@@ -46,15 +47,20 @@ function buildContextMenu() {
     click: () => { if (mainWindow) mainWindow.webContents.send('pet-action', stateName); },
   }));
 
+  const toggleLabel = (mainWindow && mainWindow.isVisible()) ? '隐藏' : '显示';
+  const toggleClick = mainWindow && mainWindow.isVisible()
+    ? () => { if (mainWindow) mainWindow.hide(); }
+    : () => { if (mainWindow) { mainWindow.show(); mainWindow.focus(); } };
+
   return Menu.buildFromTemplate([
-    { label: '显示宠物', click: () => { if (mainWindow) mainWindow.show(); } },
+    { label: toggleLabel, click: toggleClick },
     { type: 'separator' },
     { label: '切换动作', submenu: stateMenuItems },
     { label: '走路', click: () => { if (mainWindow) mainWindow.webContents.send('pet-action', 'walk'); } },
     { type: 'separator' },
     { label: '切换角色', submenu: getCharacterMenuItems() },
     { type: 'separator' },
-    { label: '退出', click: () => { app.quit(); } },
+    { label: '退出', click: () => { isQuitting = true; app.quit(); } },
   ]);
 }
 
@@ -124,9 +130,14 @@ function createWindow() {
   });
 
   mainWindow.on('close', (e) => {
-    e.preventDefault();
-    mainWindow.hide();
+    if (!isQuitting) {
+      e.preventDefault();
+      mainWindow.hide();
+    }
   });
+
+  mainWindow.on('show', () => { updateTrayMenu(); });
+  mainWindow.on('hide', () => { updateTrayMenu(); });
 
   mainWindow.on('closed', () => {
     mainWindow = null;
@@ -199,7 +210,7 @@ ipcMain.on('show-context-menu', (event, { x, y }) => {
   popupMenu.append(new MenuItem({ type: 'separator' }));
   popupMenu.append(new MenuItem({
     label: '退出',
-    click: () => { app.quit(); },
+    click: () => { isQuitting = true; app.quit(); },
   }));
 
   popupMenu.popup({ x, y });

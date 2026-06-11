@@ -29,6 +29,7 @@ let moveY = 0;
 let loopRepeats = 0;
 let loopCurrentRepeat = 0;
 let isLoopAnim = false;
+let isStaticAnim = false;
 let waiting = false;
 let waitTimer = 0;
 let waitDuration = 0;
@@ -116,6 +117,11 @@ function setState(newState) {
 
   const stateConf = charConfig.states[newState];
   isLoopAnim = stateConf.loops === true;
+  isStaticAnim = stateConf.static === true;
+
+  if (isStaticAnim && stateConf.col !== undefined) {
+    colIndex = stateConf.col;
+  }
 
   if (isLoopAnim && stateConf.loops === true) {
     const trans = charConfig.transitions[newState];
@@ -209,7 +215,9 @@ function updateState(dt) {
   // Non-walk states
   const stateConf = charConfig.states[state];
 
-  if (colTimer >= interval) {
+  if (isStaticAnim) {
+    // Static animation: stay on fixed frame, no advancement
+  } else if (colTimer >= interval) {
     colTimer -= interval;
     if (isLoopAnim) {
       colIndex = (colIndex + 1) % charConfig.cols;
@@ -234,7 +242,7 @@ function updateState(dt) {
   }
 
   // Check if animation finished (reached last frame for non-loop or waiting done)
-  if (!isLoopAnim && colIndex >= charConfig.cols - 1 && !waiting) {
+  if (!isLoopAnim && !isStaticAnim && colIndex >= charConfig.cols - 1 && !waiting) {
     const trans = charConfig.transitions[state];
     if (trans) {
       if (trans.waitMin !== undefined) {

@@ -145,7 +145,7 @@ function createWindow() {
 }
 
 function createTray() {
-  const iconPath = path.join(__dirname, 'assets', 'cat2.png');
+  const iconPath = path.join(__dirname, 'assets', 'tray-icon.png');
   tray = new Tray(iconPath);
 
   updateTrayMenu();

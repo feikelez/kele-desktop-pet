@@ -1,10 +1,72 @@
 const CHARACTERS = require('./characters');
-
 const { ipcRenderer } = require('electron');
+const path = require('path');
 
 let currentCharKey = 'cat2';
 let charConfig = CHARACTERS[currentCharKey];
 
+const sounds = {
+  walk: new Audio(),
+  meow1: new Audio(),
+  meow2: new Audio(),
+  lick: new Audio(),
+};
+
+function loadSounds() {
+  const base = path.join(__dirname, '..', 'assets', 'sounds').replace(/\\/g, '/');
+  sounds.walk.src = `file:///${base}/cat_walk.wav`;
+  sounds.walk.loop = true;
+  sounds.meow1.src = `file:///${base}/cat1.wav`;
+  sounds.meow2.src = `file:///${base}/cat2.wav`;
+  sounds.lick.src = `file:///${base}/cat_lick.wav`;
+}
+
+let walkSoundPlaying = false;
+let lickSoundPlaying = false;
+
+function playWalkSound() {
+  if (!walkSoundPlaying && currentCharKey === 'cat2') {
+    sounds.walk.currentTime = 0;
+    sounds.walk.play().catch(() => {});
+    walkSoundPlaying = true;
+  }
+}
+
+function stopWalkSound() {
+  if (walkSoundPlaying) {
+    sounds.walk.pause();
+    sounds.walk.currentTime = 0;
+    walkSoundPlaying = false;
+  }
+}
+
+function playLickSound() {
+  if (!lickSoundPlaying && currentCharKey === 'cat2') {
+    sounds.lick.currentTime = 0;
+    sounds.lick.play().catch(() => {});
+    lickSoundPlaying = true;
+  }
+}
+
+function stopLickSound() {
+  if (lickSoundPlaying) {
+    sounds.lick.pause();
+    sounds.lick.currentTime = 0;
+    lickSoundPlaying = false;
+  }
+}
+
+function playMeow() {
+  if (currentCharKey !== 'cat2') return;
+  const meow = Math.random() < 0.5 ? sounds.meow1 : sounds.meow2;
+  meow.currentTime = 0;
+  meow.play().catch(() => {});
+}
+
+let lastColIndex = -1;
+let walkStepCount = 0;
+let lastInteractionTime = Date.now();
+let isSleeping = false;
 let spriteImage = null;
 let spriteLoaded = false;
 
@@ -114,6 +176,20 @@ function setState(newState) {
   moveY = 0;
   waiting = false;
   waitTimer = 0;
+  lastColIndex = -1;
+  walkStepCount = 0;
+
+  if (newState === 'sleep') {
+    isSleeping = true;
+  } else {
+    isSleeping = false;
+  }
+
+  stopLickSound();
+
+  if (newState === 'lick') {
+    playLickSound();
+  }
 
   const stateConf = charConfig.states[newState];
   isLoopAnim = stateConf.loops === true;
@@ -148,9 +224,7 @@ function setState(newState) {
     stateDuration = randomWalkDuration();
     direction = randomDirection();
   } else if (newState === STATE.IDLE) {
-    // idle uses walk down direction
   } else {
-    // non-walk states: use down direction by default
     direction = DIR.DOWN;
   }
 }
@@ -188,6 +262,13 @@ function updateState(dt) {
     if (colTimer >= interval) {
       colTimer -= interval;
       colIndex = (colIndex + 1) % charConfig.cols;
+      if (colIndex !== lastColIndex) {
+        lastColIndex = colIndex;
+        walkStepCount++;
+        if (walkStepCount % 3 === 0 && Math.random() < 0.1) {
+          playMeow();
+        }
+      }
     }
     moveX = 0;
     moveY = 0;
@@ -202,9 +283,14 @@ function updateState(dt) {
       const transitions = charConfig.transitions.walk;
       let r = Math.random();
       let cumulativeWeight = 0;
+      const timeSinceInteraction = Date.now() - lastInteractionTime;
       for (const t of transitions) {
         cumulativeWeight += t.weight;
         if (r <= cumulativeWeight) {
+          if (t.state === 'sleep' && timeSinceInteraction < 60000) {
+            setState(STATE.WALK);
+            return;
+          }
           if (t.state === STATE.WALK) {
             stateTimer = 0;
             stateDuration = randomWalkDuration();
@@ -219,17 +305,19 @@ function updateState(dt) {
     return;
   }
 
-  // Non-walk states
   const stateConf = charConfig.states[state];
 
   if (isStaticAnim) {
-    // Static animation: stay on fixed frame, no advancement
   } else if (colTimer >= interval) {
     colTimer -= interval;
     if (isLoopAnim) {
       colIndex = (colIndex + 1) % charConfig.cols;
       if (colIndex === 0) {
         loopCurrentRepeat++;
+        if (state === 'lick') {
+          sounds.lick.currentTime = 0;
+          sounds.lick.play().catch(() => {});
+        }
         if (loopCurrentRepeat >= loopRepeats) {
           const trans = charConfig.transitions[state];
           if (trans && trans.next) {
@@ -241,14 +329,12 @@ function updateState(dt) {
         }
       }
     } else {
-      // Non-looping: advance to last frame then hold
       if (colIndex < charConfig.cols - 1) {
         colIndex++;
       }
     }
   }
 
-  // Check if animation finished (reached last frame for non-loop or waiting done)
   if (!isLoopAnim && !isStaticAnim && colIndex >= charConfig.cols - 1 && !waiting) {
     const trans = charConfig.transitions[state];
     if (trans) {
@@ -266,6 +352,12 @@ function updateState(dt) {
 function setupInteraction() {
   canvas.addEventListener('mousedown', (e) => {
     if (e.button === 0) {
+      lastInteractionTime = Date.now();
+      if (isSleeping) {
+        isSleeping = false;
+        setState(STATE.WALK);
+        return;
+      }
       isDragging = true;
       dragOffsetX = e.screenX - petX;
       dragOffsetY = e.screenY - petY;
@@ -292,6 +384,7 @@ function setupInteraction() {
   });
 
   canvas.addEventListener('dblclick', () => {
+    lastInteractionTime = Date.now();
     const actions = charConfig.doubleClickActions;
     let r = Math.random();
     let cumulative = 0;
@@ -334,7 +427,7 @@ async function switchCharacter(charKey) {
 }
 
 function update(dt) {
-  if (isDragging) return;
+  if (isDragging || isSleeping) return;
 
   updateState(dt);
 
@@ -391,10 +484,9 @@ function gameLoop(timestamp) {
   requestAnimationFrame(gameLoop);
 }
 
-const path = require('path');
-
 async function init() {
   applyCanvasSize();
+  loadSounds();
 
   ipcRenderer.on('sprite-path', (event, spritePath) => {
     loadSprite(spritePath).then(() => {

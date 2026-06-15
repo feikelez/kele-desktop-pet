@@ -125,6 +125,7 @@ const CHARACTERS = {
           const groups = [
             [[4,2],[4,3]], [[5,2],[5,3]],
             [[4,0],[4,1]], [[5,0],[5,1]],
+            [[7,3],[9,3]],
           ];
           const g = [];
           for (const group of groups) {
@@ -146,7 +147,7 @@ const CHARACTERS = {
         { state: 'walk', weight: 0.6 },
       ],
       idle: { waitMin: 3000, waitMax: 6000, next: 'walk' },
-      dance: { next: 'walk' },
+      dance: { repeatMin: 100, repeatMax: 100, next: 'walk' },
     },
     walkDurationMin: 2000,
     walkDurationMax: 4000,

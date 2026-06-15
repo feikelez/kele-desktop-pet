@@ -168,6 +168,9 @@ function getCurrentRow() {
   if (state === STATE.WALK) {
     return getWalkRow(direction);
   }
+  if (stateConf.frames) {
+    return stateConf.frames[colIndex % stateConf.frames.length].row;
+  }
   return stateConf.row;
 }
 
@@ -332,12 +335,13 @@ function updateState(dt) {
   }
 
   const stateConf = charConfig.states[state];
+  const frameCount = stateConf.frames ? stateConf.frames.length : charConfig.cols;
 
   if (isStaticAnim) {
   } else if (colTimer >= interval) {
     colTimer -= interval;
     if (isLoopAnim) {
-      colIndex = (colIndex + 1) % charConfig.cols;
+      colIndex = (colIndex + 1) % frameCount;
       if (colIndex === 0) {
         loopCurrentRepeat++;
         if (state === 'lick') {
@@ -355,13 +359,13 @@ function updateState(dt) {
         }
       }
     } else {
-      if (colIndex < charConfig.cols - 1) {
+      if (colIndex < frameCount - 1) {
         colIndex++;
       }
     }
   }
 
-  if (!isLoopAnim && !isStaticAnim && colIndex >= charConfig.cols - 1 && !waiting) {
+  if (!isLoopAnim && !isStaticAnim && colIndex >= frameCount - 1 && !waiting) {
     const trans = charConfig.transitions[state];
     if (trans) {
       if (trans.waitMin !== undefined) {
@@ -495,8 +499,11 @@ function render() {
     return;
   }
 
+  const stateConf = charConfig.states[state];
   const row = getCurrentRow();
-  const col = colIndex % charConfig.cols;
+  const col = stateConf.frames
+    ? stateConf.frames[colIndex % stateConf.frames.length].col
+    : colIndex % charConfig.cols;
 
   drawFrame(ctx, row, col);
 }

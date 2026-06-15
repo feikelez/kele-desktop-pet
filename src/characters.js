@@ -114,16 +114,21 @@ const CHARACTERS = {
         frameInterval: 200,
       },
       idle: {
-        frames: [
-          { row: 4, col: 2 },
-          { row: 4, col: 3 },
-          { row: 5, col: 2 },
-          { row: 5, col: 3 },
-          { row: 4, col: 0 },
-          { row: 4, col: 1 },
-          { row: 5, col: 0 },
-          { row: 5, col: 1 },
-        ],
+        frames: (() => {
+          const groups = [
+            [[4,2],[4,3]], [[5,2],[5,3]],
+            [[4,0],[4,1]], [[5,0],[5,1]],
+          ];
+          const g = [];
+          for (const group of groups) {
+            for (let r = 0; r < 4; r++) {
+              for (const [row, col] of group) {
+                g.push({ row, col });
+              }
+            }
+          }
+          return g;
+        })(),
         frameInterval: 400,
         loops: true,
       },

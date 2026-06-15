@@ -114,6 +114,13 @@ const CHARACTERS = {
         frameInterval: 200,
       },
       idle: {
+        row: 0,
+        col: 0,
+        frameInterval: 600,
+        loops: false,
+        static: true,
+      },
+      dance: {
         frames: (() => {
           const groups = [
             [[4,2],[4,3]], [[5,2],[5,3]],
@@ -130,7 +137,7 @@ const CHARACTERS = {
           return g;
         })(),
         frameInterval: 400,
-        loops: false,
+        loops: true,
       },
     },
     transitions: {
@@ -138,7 +145,8 @@ const CHARACTERS = {
         { state: 'idle', weight: 0.4 },
         { state: 'walk', weight: 0.6 },
       ],
-      idle: { next: 'walk' },
+      idle: { waitMin: 3000, waitMax: 6000, next: 'walk' },
+      dance: { next: 'walk' },
     },
     walkDurationMin: 2000,
     walkDurationMax: 4000,

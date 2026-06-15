@@ -80,6 +80,7 @@ function getStateLabel(stateName, charName) {
     look_up: '往上看',
     look_left: '往左看',
     motorcycle: '骑摩托',
+    dance: '跳舞',
     game: '玩游戏',
   };
   return labels[stateName] || stateName;

@@ -130,7 +130,7 @@ const CHARACTERS = {
           return g;
         })(),
         frameInterval: 400,
-        loops: true,
+        loops: false,
       },
     },
     transitions: {
@@ -138,7 +138,7 @@ const CHARACTERS = {
         { state: 'idle', weight: 0.4 },
         { state: 'walk', weight: 0.6 },
       ],
-      idle: { repeatMin: 3, repeatMax: 6, next: 'walk' },
+      idle: { next: 'walk' },
     },
     walkDurationMin: 2000,
     walkDurationMax: 4000,

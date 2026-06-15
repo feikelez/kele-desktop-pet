@@ -10,6 +10,7 @@ const sounds = {
   meow1: new Audio(),
   meow2: new Audio(),
   lick: new Audio(),
+  dance: new Audio(),
 };
 
 function loadSounds() {
@@ -19,6 +20,7 @@ function loadSounds() {
   sounds.meow1.src = `file:///${base}/cat1.wav`;
   sounds.meow2.src = `file:///${base}/cat2.wav`;
   sounds.lick.src = `file:///${base}/cat_lick.wav`;
+  sounds.dance.src = `file:///${base}/emily_dance.wav`;
 }
 
 let walkSoundPlaying = false;
@@ -187,6 +189,11 @@ function setState(newState) {
   const prevState = state;
   const prevStateConf = charConfig.states[prevState];
 
+  if (prevState === 'idle') {
+    sounds.dance.pause();
+    sounds.dance.currentTime = 0;
+  }
+
   state = newState;
   stateTimer = 0;
   colIndex = 0;
@@ -208,6 +215,11 @@ function setState(newState) {
 
   if (newState === 'lick') {
     playLickSound();
+  }
+
+  if (newState === 'idle' && currentCharKey === 'emily') {
+    sounds.dance.currentTime = 0;
+    sounds.dance.play().catch(() => {});
   }
 
   const stateConf = charConfig.states[newState];

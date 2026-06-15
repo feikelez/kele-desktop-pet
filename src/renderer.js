@@ -67,8 +67,11 @@ let lastColIndex = -1;
 let walkStepCount = 0;
 let lastInteractionTime = Date.now();
 let isSleeping = false;
+let isProp = false;
 let spriteImage = null;
 let spriteLoaded = false;
+let propImage = null;
+let propLoaded = false;
 
 let canvasWidth = 0;
 let canvasHeight = 0;
@@ -78,6 +81,7 @@ const DIR = { DOWN: 0, RIGHT: 1, UP: 2, LEFT: 3 };
 const STATE = {
   WALK: 'walk',
   IDLE: 'idle',
+  MOTORCYCLE: 'motorcycle',
 };
 
 let state = STATE.WALK;
@@ -167,7 +171,19 @@ function getCurrentRow() {
   return stateConf.row;
 }
 
+function applyCanvasSizeProp(w, h) {
+  canvasWidth = w;
+  canvasHeight = h;
+  canvas.width = canvasWidth;
+  canvas.height = canvasHeight;
+  canvas.style.width = canvasWidth + 'px';
+  canvas.style.height = canvasHeight + 'px';
+}
+
 function setState(newState) {
+  const prevState = state;
+  const prevStateConf = charConfig.states[prevState];
+
   state = newState;
   stateTimer = 0;
   colIndex = 0;
@@ -194,6 +210,16 @@ function setState(newState) {
   const stateConf = charConfig.states[newState];
   isLoopAnim = stateConf.loops === true;
   isStaticAnim = stateConf.static === true;
+  isProp = stateConf.prop === true;
+
+  if (isProp) {
+    const scale = charConfig.scale;
+    applyCanvasSizeProp(stateConf.propWidth * scale, stateConf.propHeight * scale);
+    ipcRenderer.send('resize-window', { width: canvasWidth, height: canvasHeight });
+  } else if (prevStateConf && prevStateConf.prop === true) {
+    applyCanvasSize();
+    ipcRenderer.send('resize-window', { width: canvasWidth, height: canvasHeight });
+  }
 
   if (isStaticAnim && stateConf.col !== undefined) {
     colIndex = stateConf.col;
@@ -213,7 +239,7 @@ function setState(newState) {
     loopCurrentRepeat = 0;
   }
 
-  if (isStaticAnim) {
+  if (isStaticAnim || isProp) {
     const trans = charConfig.transitions[newState];
     if (trans && trans.waitMin !== undefined) {
       startWaiting(trans.waitMin + Math.random() * (trans.waitMax - trans.waitMin));
@@ -458,6 +484,16 @@ function update(dt) {
 function render() {
   ctx.clearRect(0, 0, canvasWidth, canvasHeight);
   ctx.imageSmoothingEnabled = false;
+
+  if (isProp && propLoaded) {
+    const scale = charConfig.scale;
+    const dw = propImage.width * scale;
+    const dh = propImage.height * scale;
+    const dx = (canvasWidth - dw) / 2;
+    const dy = (canvasHeight - dh) / 2;
+    ctx.drawImage(propImage, 0, 0, propImage.width, propImage.height, dx, dy, dw, dh);
+    return;
+  }
 
   const row = getCurrentRow();
   const col = colIndex % charConfig.cols;

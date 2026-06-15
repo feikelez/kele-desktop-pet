@@ -100,6 +100,40 @@ const CHARACTERS = {
       { state: 'idle', weight: 1.0 },
     ],
   },
+  emily: {
+    name: 'Emily',
+    sprite: 'characters/Emily_walk.png',
+    frameWidth: 16,
+    frameHeight: 32,
+    cols: 4,
+    scale: 3,
+    walkSpeed: 0.06,
+    states: {
+      walk: {
+        directionRows: { down: 0, right: 1, up: 2, left: 3 },
+        frameInterval: 200,
+      },
+      idle: {
+        row: 0,
+        col: 0,
+        frameInterval: 600,
+        loops: false,
+        static: true,
+      },
+    },
+    transitions: {
+      walk: [
+        { state: 'idle', weight: 0.4 },
+        { state: 'walk', weight: 0.6 },
+      ],
+      idle: { waitMin: 1000, waitMax: 2500, next: 'walk' },
+    },
+    walkDurationMin: 2000,
+    walkDurationMax: 4000,
+    doubleClickActions: [
+      { state: 'idle', weight: 1.0 },
+    ],
+  },
 };
 
 module.exports = CHARACTERS;

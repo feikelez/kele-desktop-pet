@@ -7,6 +7,30 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
+  <div id="furnace-overlay" class="hidden">
+    <div id="furnace-text-wrap">
+      <textarea id="furnace-text" placeholder="写下你的烦恼..." maxlength="200"></textarea>
+    </div>
+    <button id="furnace-burn-btn">🔥 烧掉</button>
+  </div>
+  <div id="rps-overlay" class="hidden">
+    <div id="rps-title">和 <span id="rps-char-name">猫猫</span> 猜拳</div>
+    <div id="rps-choices">
+      <button class="rps-btn" data-choice="0">✊</button>
+      <button class="rps-btn" data-choice="1">✋</button>
+      <button class="rps-btn" data-choice="2">✌️</button>
+    </div>
+    <div id="rps-battle" class="hidden">
+      <div class="rps-side"><span class="rps-emoji" id="rps-player-emoji"></span><span class="rps-label">你</span></div>
+      <div class="rps-vs">VS</div>
+      <div class="rps-side"><span class="rps-emoji" id="rps-char-emoji"></span><span class="rps-label" id="rps-char-label">猫猫</span></div>
+    </div>
+    <div id="rps-outcome" class="hidden"></div>
+    <div id="rps-actions" class="hidden">
+      <button id="rps-again">再来一局</button>
+      <button id="rps-quit">不玩了</button>
+    </div>
+  </div>
   <canvas id="petCanvas"></canvas>
   <script src="renderer.js"></script>
 </body>

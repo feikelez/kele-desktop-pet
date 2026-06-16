@@ -8,7 +8,7 @@ let isQuitting = false;
 let currentCharKey = 'cat2';
 
 function getCharacterMenuItems() {
-  return Object.keys(CHARACTERS).map(key => ({
+  return Object.keys(CHARACTERS).filter(key => !CHARACTERS[key].isFurnace).map(key => ({
     label: CHARACTERS[key].name,
     type: 'radio',
     checked: key === currentCharKey,
@@ -18,6 +18,9 @@ function getCharacterMenuItems() {
 
 function getCanvasSize(charKey) {
   const conf = CHARACTERS[charKey];
+  if (conf.isFurnace) {
+    return { width: conf.furnaceCanvasWidth, height: conf.furnaceCanvasHeight };
+  }
   return {
     width: conf.frameWidth * conf.scale,
     height: conf.frameHeight * conf.scale,
@@ -39,7 +42,21 @@ function switchCharacter(charKey) {
 
 function buildContextMenu() {
   const charConf = CHARACTERS[currentCharKey];
-  const stateLabels = {};
+
+  if (charConf.isFurnace) {
+    const toggleLabel = (mainWindow && mainWindow.isVisible()) ? '隐藏' : '显示';
+    const toggleClick = mainWindow && mainWindow.isVisible()
+      ? () => { if (mainWindow) mainWindow.hide(); }
+      : () => { if (mainWindow) { mainWindow.show(); mainWindow.focus(); } };
+    return Menu.buildFromTemplate([
+      { label: toggleLabel, click: toggleClick },
+      { type: 'separator' },
+      { label: '切换角色', submenu: getCharacterMenuItems() },
+      { type: 'separator' },
+      { label: '退出', click: () => { isQuitting = true; app.quit(); } },
+    ]);
+  }
+
   const stateNames = Object.keys(charConf.states).filter(s => s !== 'walk');
 
   const stateMenuItems = stateNames.map(stateName => ({
@@ -57,6 +74,7 @@ function buildContextMenu() {
     { type: 'separator' },
     { label: '切换动作', submenu: stateMenuItems },
     { label: '走路', click: () => { if (mainWindow) mainWindow.webContents.send('pet-action', 'walk'); } },
+    { label: '猜拳', click: () => { if (mainWindow) mainWindow.webContents.send('pet-action', 'rps'); } },
     { type: 'separator' },
     { label: '切换角色', submenu: getCharacterMenuItems() },
     { type: 'separator' },
@@ -195,11 +213,20 @@ ipcMain.on('resize-window', (event, { width, height }) => {
 });
 
 ipcMain.on('show-context-menu', (event, { x, y }) => {
+  const charConf = CHARACTERS[currentCharKey];
+
+  if (charConf.isFurnace) {
+    const popupMenu = Menu.buildFromTemplate([
+      { label: '退出', click: () => { isQuitting = true; app.quit(); } },
+    ]);
+    popupMenu.popup({ x, y });
+    return;
+  }
+
   const popupMenu = Menu.buildFromTemplate([
     { label: '走路', click: () => { if (mainWindow) mainWindow.webContents.send('pet-action', 'walk'); } },
   ]);
 
-  const charConf = CHARACTERS[currentCharKey];
   const stateNames = Object.keys(charConf.states).filter(s => s !== 'walk');
   for (const stateName of stateNames) {
     popupMenu.append(new MenuItem({
@@ -208,6 +235,11 @@ ipcMain.on('show-context-menu', (event, { x, y }) => {
     }));
   }
 
+  popupMenu.append(new MenuItem({ type: 'separator' }));
+  popupMenu.append(new MenuItem({
+    label: '猜拳',
+    click: () => { if (mainWindow) mainWindow.webContents.send('pet-action', 'rps'); },
+  }));
   popupMenu.append(new MenuItem({ type: 'separator' }));
   popupMenu.append(new MenuItem({
     label: '退出',

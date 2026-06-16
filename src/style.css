@@ -18,3 +18,184 @@ html, body {
   -ms-interpolation-mode: nearest-neighbor;
   display: block;
 }
+
+#furnace-overlay {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  pointer-events: none;
+}
+
+#furnace-overlay.hidden {
+  display: none;
+}
+
+#furnace-text-wrap {
+  background: rgba(0, 0, 0, 0.7);
+  border: 2px solid #8b7355;
+  border-radius: 8px;
+  padding: 8px;
+  pointer-events: auto;
+}
+
+#furnace-text {
+  width: 260px;
+  height: 80px;
+  background: transparent;
+  border: none;
+  color: #f0e6d2;
+  font-size: 14px;
+  font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif;
+  resize: none;
+  outline: none;
+  line-height: 1.5;
+}
+
+#furnace-text::placeholder {
+  color: #8b7355;
+}
+
+#furnace-burn-btn {
+  pointer-events: auto;
+  padding: 6px 24px;
+  background: #8b4513;
+  color: #ffd700;
+  border: 2px solid #a0522d;
+  border-radius: 6px;
+  font-size: 15px;
+  cursor: pointer;
+  font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif;
+  transition: background 0.2s;
+}
+
+#furnace-burn-btn:hover {
+  background: #a0522d;
+}
+
+/* ──────── RPS Game ──────── */
+
+#rps-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 10px;
+  pointer-events: none;
+  user-select: none;
+}
+
+#rps-overlay.hidden { display: none; }
+
+#rps-title {
+  font-size: 16px;
+  color: #f0e6d2;
+  font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif;
+  margin-bottom: 8px;
+  text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+}
+
+#rps-choices {
+  display: flex;
+  gap: 10px;
+  pointer-events: auto;
+}
+
+.rps-btn {
+  width: 56px;
+  height: 56px;
+  font-size: 28px;
+  background: rgba(0, 0, 0, 0.6);
+  border: 2px solid #8b7355;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: transform 0.15s, background 0.15s;
+  line-height: 1;
+}
+
+.rps-btn:hover {
+  transform: scale(1.15);
+  background: rgba(60, 45, 30, 0.8);
+  border-color: #c8a96e;
+}
+
+#rps-battle {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: 12px;
+}
+
+#rps-battle.hidden { display: none; }
+
+.rps-side {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.rps-emoji {
+  font-size: 36px;
+  line-height: 1;
+}
+
+.rps-vs {
+  font-size: 14px;
+  color: #c8a96e;
+  font-weight: bold;
+  font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif;
+}
+
+.rps-label {
+  font-size: 12px;
+  color: #b8a080;
+  font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif;
+}
+
+#rps-outcome {
+  font-size: 18px;
+  font-weight: bold;
+  margin-top: 8px;
+  font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif;
+  text-shadow: 1px 1px 3px rgba(0,0,0,0.9);
+}
+
+#rps-outcome.hidden { display: none; }
+#rps-outcome.win  { color: #4caf50; }
+#rps-outcome.lose { color: #f44336; }
+#rps-outcome.draw { color: #ffc107; }
+
+#rps-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 10px;
+  pointer-events: auto;
+}
+
+#rps-actions.hidden { display: none; }
+
+#rps-actions button {
+  padding: 5px 18px;
+  font-size: 13px;
+  background: rgba(40, 30, 20, 0.8);
+  color: #f0e6d2;
+  border: 1px solid #8b7355;
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif;
+  transition: background 0.2s;
+}
+
+#rps-actions button:hover {
+  background: rgba(80, 60, 40, 0.9);
+}

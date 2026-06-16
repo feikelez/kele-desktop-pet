@@ -155,6 +155,25 @@ const CHARACTERS = {
       { state: 'idle', weight: 1.0 },
     ],
   },
+  furnace: {
+    name: '熔炉',
+    sprite: 'furnace/furnace.png',
+    frameWidth: 16,
+    frameHeight: 32,
+    cols: 2,
+    scale: 3,
+    isFurnace: true,
+    furnaceCanvasWidth: 320,
+    furnaceCanvasHeight: 280,
+    walkSpeed: 0,
+    states: {
+      idle: { row: 0, col: 0, frameInterval: 400 },
+    },
+    transitions: {},
+    walkDurationMin: 60000,
+    walkDurationMax: 120000,
+    doubleClickActions: [],
+  },
 };
 
 module.exports = CHARACTERS;
